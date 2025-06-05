@@ -73,9 +73,11 @@ class Column(BaseModel):
                 cleaned_struct_type = re.sub("(.*struct<)(.*?)(>.*)", r"\1\3", self.type.lower())
                 return cleaned_struct_type.replace("<", "[").replace(">", "]")
             elif "decimal" in self.type.lower():
-                return re.sub(r"(.*decimal)\([^)]*\)(.*)", r"\1\2", self.type.lower())
+                return re.sub(r"decimal\([^)]*\)", "decimal", self.type.lower())
             else:
                 return self.type
+
+
 
     @classmethod
     def from_manifest_catalog_node_columns(
