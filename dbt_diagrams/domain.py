@@ -29,7 +29,7 @@ class Cardinality(Enum):
 
 
 class MetaERDConnection(BaseModel):
-    model_config = ConfigDict(extra='forbid', frozen=True)
+    model_config = ConfigDict(extra='forbid')
     
     target: str
     source_cardinality: Cardinality
@@ -39,13 +39,13 @@ class MetaERDConnection(BaseModel):
 
 
 class MetaERDSection(BaseModel):
-    model_config = ConfigDict(extra='forbid', frozen=True)
+    model_config = ConfigDict(extra='forbid')
     
     connections: List[MetaERDConnection] = Field(default_factory=list)
 
 
 class Column(BaseModel):
-    model_config = ConfigDict(extra='forbid', frozen=True)
+    model_config = ConfigDict(extra='forbid')
     
     name: str
     type: Optional[str]
@@ -97,7 +97,7 @@ class Column(BaseModel):
 
 
 class Table(BaseModel):
-    model_config = ConfigDict(extra='forbid', frozen=True)
+    model_config = ConfigDict(extra='forbid')
     
     model_name: str
     rendered_name: str
@@ -141,7 +141,7 @@ class Table(BaseModel):
 
 
 class Relation(BaseModel):
-    model_config = ConfigDict(extra='forbid', frozen=True)
+    model_config = ConfigDict(extra='forbid')
     
     diagram: str
     source: Table
