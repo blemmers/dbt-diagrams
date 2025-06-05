@@ -72,8 +72,8 @@ class Column(BaseModel):
             if "STRUCT" in self.type:
                 cleaned_struct_type = re.sub("(.*STRUCT<)(.*?)(>.*)", r"\1\3", self.type)
                 return cleaned_struct_type.replace("<", "[").replace(">", "]")
-            elif "DECIMAL" in self.type:
-                return re.sub("DECIMAL\([^)]*\)", "DECIMAL", self.type)
+            elif "DECIMAL" in self.type.upper():  # Check uppercase version
+                return re.sub(r"DECIMAL\([^)]*\)", "DECIMAL", self.type, flags=re.IGNORECASE)
             else:
                 return self.type
 
