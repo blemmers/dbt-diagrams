@@ -69,14 +69,13 @@ class Column(BaseModel):
             # ARRAY<STRUCT<a INT64, b NUMERIC>>
             # We need to remove the content of the struct type
             # because it's not allowed by Mermaid syntax.
-            if "struct" in self.type.lower():
-                cleaned_struct_type = re.sub("(.*struct<)(.*?)(>.*)", r"\1\3", self.type.lower())
+            if "STRUCT" in self.type:
+                cleaned_struct_type = re.sub("(.*STRUCT<)(.*?)(>.*)", r"\1\3", self.type)
                 return cleaned_struct_type.replace("<", "[").replace(">", "]")
-            elif "decimal" in self.type.lower():
-                return re.sub(r"decimal\([^)]*\)", "decimal", self.type.lower())
+            elif "DECIMAL" in self.type:
+                return re.sub("DECIMAL\([^)]*\)", "DECIMAL", self.type)
             else:
                 return self.type
-
 
 
     @classmethod
