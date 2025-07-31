@@ -76,7 +76,7 @@ class Column(BaseModel):
                 return re.sub(r"DECIMAL\([^)]*\)", "decimal", self.type, flags=re.IGNORECASE)
             else:
                 return self.type
-        else return None
+        return None
 
     @classmethod
     def from_manifest_catalog_node_columns(
