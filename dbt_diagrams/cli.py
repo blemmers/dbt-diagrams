@@ -161,7 +161,6 @@ async def render_erds(ctx, dbt_target_dir, manifest, catalog, format, output_dir
 
     click.secho(f"Finished. Output written to {output_dir.cwd()}.", fg="green")
 
-
 # Disable REST API for now because of multi-ERD support that needs to be built-in.
 
 # @cli.command()
@@ -274,7 +273,6 @@ def generate(ctx, include_columns, docs_args):
             with open(target_dir / "static_index.html", "w") as s_index_html_handle:
                 s_index_html_handle.write(index_html)
 
-
         click.secho("All done.", fg="green")
     except Exception as e:
         if ctx.obj["debug"]:
@@ -322,28 +320,21 @@ def serve(ctx, port, browser, target_path):
         # Change to target directory
         os.chdir(target_dir)
         
-        # Import the dbt index template path - you may need to adjust this import
-        try:
-            from dbt.include.global_project import DOCS_INDEX_FILE_PATH
-        except ImportError:
-            exit_with_error("Could not import dbt. Make sure dbt-core is installed.")
-        
-        # Only copy index.html if it doesn't exist (preserves customizations)
+        # Check if docs files exist (they should after running generate)
         if not os.path.exists("index.html"):
-            click.echo("Creating index.html from dbt template...")
-            shutil.copyfile(DOCS_INDEX_FILE_PATH, "index.html")
-        else:
-            click.echo("Using existing index.html (preserving customizations)...")
+            exit_with_error(
+                "index.html not found. Please run 'dbt-diagrams docs generate' first."
+            )
         
-        # Check if docs files exist
         required_files = ["manifest.json"]
         missing_files = [f for f in required_files if not os.path.exists(f)]
         if missing_files:
-            click.secho(
-                f"Warning: Missing required files: {', '.join(missing_files)}. "
-                f"Run 'dbt-diagrams docs generate' first.",
-                fg="yellow"
+            exit_with_error(
+                f"Missing required files: {', '.join(missing_files)}. "
+                f"Please run 'dbt-diagrams docs generate' first."
             )
+        
+        click.echo("Using existing docs (with ERDs and customizations)...")
         
         # Open browser if requested
         if browser:
