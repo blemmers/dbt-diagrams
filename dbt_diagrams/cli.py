@@ -3,9 +3,14 @@ from functools import wraps
 import json
 import os
 from pathlib import Path
+import shutil
+import socketserver
 import subprocess
 import sys
 import traceback
+import webbrowser
+from http.server import SimpleHTTPRequestHandler
+
 import click
 import yaml
 from dbt_diagrams.input_validators import DbtArtifactType, verify_and_read
@@ -31,6 +36,36 @@ def coro(f):
 def exit_with_error(msg: str):
     click.secho(msg, fg="red")
     sys.exit(1)
+
+
+def get_target_dir():
+    """Get the dbt target directory using the same precedence as dbt"""
+    # Check CLI args (would need to be passed through if needed)
+    cli_target_path = None
+    
+    # Check environment variable
+    env_target_path = os.environ.get("DBT_TARGET_PATH")
+    
+    # Check dbt_project.yml
+    dbt_project_target_path = None
+    if os.path.exists("./dbt_project.yml"):
+        with open("./dbt_project.yml", "r") as dbt_project_file:
+            dbt_project_target_path = yaml.safe_load(dbt_project_file.read()).get("target-path")
+    
+    # Return first available option following dbt's precedence
+    target_dir = Path(
+        next(
+            td for td in [
+                cli_target_path,
+                env_target_path, 
+                dbt_project_target_path,
+                "./target",
+            ]
+            if td is not None
+        )
+    )
+    
+    return target_dir
 
 
 @click.group
@@ -245,6 +280,90 @@ def generate(ctx, include_columns, docs_args):
         if ctx.obj["debug"]:
             traceback.print_exc()
         exit_with_error(e)
+
+
+@docs.command()
+@click.pass_context
+@click.option(
+    "--port",
+    "-p",
+    default=8080,
+    help="Port to serve docs on (default: 8080)",
+    type=int,
+)
+@click.option(
+    "--browser/--no-browser",
+    default=True,
+    help="Open browser automatically (default: True)",
+)
+@click.option(
+    "--target-path",
+    "-t",
+    required=False,
+    help="Override target path for docs location",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+)
+def serve(ctx, port, browser, target_path):
+    """
+    Serve dbt docs with ERDs included. Preserves any customized index.html files 
+    (such as those with embedded Mermaid diagrams) instead of overwriting them.
+    """
+    try:
+        # Determine target directory
+        if target_path:
+            target_dir = Path(target_path)
+        else:
+            target_dir = get_target_dir()
+        
+        # Ensure target directory exists
+        if not target_dir.exists():
+            exit_with_error(f"Target directory does not exist: {target_dir}")
+        
+        # Change to target directory
+        os.chdir(target_dir)
+        
+        # Import the dbt index template path - you may need to adjust this import
+        try:
+            from dbt.include.global_project import DOCS_INDEX_FILE_PATH
+        except ImportError:
+            exit_with_error("Could not import dbt. Make sure dbt-core is installed.")
+        
+        # Only copy index.html if it doesn't exist (preserves customizations)
+        if not os.path.exists("index.html"):
+            click.echo("Creating index.html from dbt template...")
+            shutil.copyfile(DOCS_INDEX_FILE_PATH, "index.html")
+        else:
+            click.echo("Using existing index.html (preserving customizations)...")
+        
+        # Check if docs files exist
+        required_files = ["manifest.json"]
+        missing_files = [f for f in required_files if not os.path.exists(f)]
+        if missing_files:
+            click.secho(
+                f"Warning: Missing required files: {', '.join(missing_files)}. "
+                f"Run 'dbt-diagrams docs generate' first.",
+                fg="yellow"
+            )
+        
+        # Open browser if requested
+        if browser:
+            webbrowser.open_new_tab(f"http://localhost:{port}")
+        
+        # Start the server
+        with socketserver.TCPServer(("", port), SimpleHTTPRequestHandler) as httpd:
+            click.secho(f"Serving docs at http://localhost:{port}", fg="green")
+            click.echo(f"Target directory: {target_dir.absolute()}")
+            click.echo("\nPress Ctrl+C to exit.")
+            
+            try:
+                httpd.serve_forever()
+            except KeyboardInterrupt:
+                click.echo("\nShutting down server...")
+                
+    except Exception as e:
+        if ctx.obj["debug"]:
+            traceback.print_exc()
+        exit_with_error(f"Error serving docs: {e}")
 
 
 if __name__ == "__main__":
